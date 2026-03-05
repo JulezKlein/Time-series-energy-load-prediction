@@ -14,6 +14,7 @@ except ImportError:
     def load_dotenv(*args, **kwargs):
         return False
 
+
 def _load_project_dotenv() -> None:
     project_root_env = Path(__file__).resolve().parents[1] / ".env"
     cwd_env = Path.cwd() / ".env"
@@ -27,6 +28,7 @@ def _load_project_dotenv() -> None:
 
 
 _load_project_dotenv()
+
 
 def get_load_data(
     start: pd.Timestamp,
@@ -48,7 +50,8 @@ def get_load_data(
     """
     resolved_api_key = api_key or os.getenv("ENTSOE_API_KEY")
     if not resolved_api_key:
-        raise ValueError("ENTSOE_API_KEY is not set. Provide api_key or set environment variable.")
+        raise ValueError(
+            "ENTSOE_API_KEY is not set. Provide api_key or set environment variable.")
 
     # Documentation: https://github.com/EnergieID/entsoe-py/tree/master
     client = EntsoePandasClient(api_key=resolved_api_key)
@@ -66,15 +69,21 @@ def get_load_data(
     )
 
     # Add lag features and rolling mean for temporal patterns
-    df_load["lag_1"] = df_load["load_mw"].shift(1) # Yesterday's load
-    df_load["lag_7"] = df_load["load_mw"].shift(7) # Load from the same day last week
-    df_load["lag_14"] = df_load["load_mw"].shift(14) # Load from two weeks ago
-    df_load["rolling_mean_7"] = df_load["load_mw"].rolling(7).mean() # 7-day rolling mean
+    df_load["lag_1"] = df_load["load_mw"].shift(1)  # Yesterday's load
+    df_load["lag_7"] = df_load["load_mw"].shift(
+        7)  # Load from the same day last week
+    df_load["lag_14"] = df_load["load_mw"].shift(14)  # Load from two weeks ago
+    df_load["rolling_mean_7"] = df_load["load_mw"].rolling(
+        7).mean()  # 7-day rolling mean
+
+    # Add the target for the prediction task: load of the next day
+    df_load["load_tomorrow"] = df_load["load_mw"].shift(-1)
 
     df_load = df_load.reset_index().rename(columns={"index": "time"})
     return df_load
 
-def get_weather_data(start_date: date, end_date: date, locations: int = 4) -> pd.DataFrame:
+
+def get_weather_and_calender_data(start_date: date, end_date: date, locations: int = 4) -> pd.DataFrame:
     """
     Fetches weather data for a given location and date range.
 
@@ -113,13 +122,19 @@ def get_weather_data(start_date: date, end_date: date, locations: int = 4) -> pd
         )
 
     # Build per-metric dataframes across all cities
-    temp_df = pd.DataFrame({city: metrics["Temp"] for city, metrics in city_weather.items()})
-    tmin_df = pd.DataFrame({city: metrics["Min Temp"] for city, metrics in city_weather.items()})
-    tmax_df = pd.DataFrame({city: metrics["Max Temp"] for city, metrics in city_weather.items()})
-    wspd_df = pd.DataFrame({city: metrics["Wind Speed"] for city, metrics in city_weather.items()})
-    sshn_df = pd.DataFrame({city: metrics["Sunshine Duration"] for city, metrics in city_weather.items()})
-    cldc_df = pd.DataFrame({city: metrics["Cloud Cover"] for city, metrics in city_weather.items()})
-    
+    temp_df = pd.DataFrame({city: metrics["Temp"]
+                           for city, metrics in city_weather.items()})
+    tmin_df = pd.DataFrame(
+        {city: metrics["Min Temp"] for city, metrics in city_weather.items()})
+    tmax_df = pd.DataFrame(
+        {city: metrics["Max Temp"] for city, metrics in city_weather.items()})
+    wspd_df = pd.DataFrame(
+        {city: metrics["Wind Speed"] for city, metrics in city_weather.items()})
+    sshn_df = pd.DataFrame(
+        {city: metrics["Sunshine Duration"] for city, metrics in city_weather.items()})
+    cldc_df = pd.DataFrame(
+        {city: metrics["Cloud Cover"] for city, metrics in city_weather.items()})
+
     weather_df = pd.DataFrame(
         {
             "Temp": temp_df.mean(axis=1),               # °C
@@ -139,14 +154,23 @@ def get_weather_data(start_date: date, end_date: date, locations: int = 4) -> pd
     weather_df["is_weekend"] = (weather_df["dayofweek"] >= 5).astype(int)
 
     de_holidays = holidays.Germany(prov="NW")
-    weather_df["is_holiday"] = datetime_index.normalize().isin(de_holidays).astype(int)
+    weather_df["is_holiday"] = datetime_index.normalize().isin(
+        de_holidays).astype(int)
 
     weather_df["dow_sin"] = np.sin(2 * np.pi * weather_df["dayofweek"] / 7)
     weather_df["dow_cos"] = np.cos(2 * np.pi * weather_df["dayofweek"] / 7)
     weather_df["month_sin"] = np.sin(2 * np.pi * weather_df["month"] / 12)
     weather_df["month_cos"] = np.cos(2 * np.pi * weather_df["month"] / 12)
-    
+
     weather_df = weather_df.drop(columns=["dayofweek", "month"])
+
+    # Shift day, month and holiday features to align with the load of the next day (the prediction target)
+    weather_df["is_weekend"] = weather_df["is_weekend"].shift(-1)
+    weather_df["is_holiday"] = weather_df["is_holiday"].shift(-1)
+    weather_df["dow_sin"] = weather_df["dow_sin"].shift(-1)
+    weather_df["dow_cos"] = weather_df["dow_cos"].shift(-1)
+    weather_df["month_sin"] = weather_df["month_sin"].shift(-1)
+    weather_df["month_cos"] = weather_df["month_cos"].shift(-1)
 
     return weather_df
 
@@ -172,13 +196,15 @@ def get_matched_weather_load_data(
     pd.DataFrame: Combined weather and load dataframe matched on `time`.
     """
     # Weather data by meteostat API, averaged across multiple cities
-    weather_df = get_weather_data(start_date=start_date, end_date=end_date, locations=locations)
+    weather_df = get_weather_and_calender_data(
+        start_date=start_date, end_date=end_date, locations=locations)
     weather_df = weather_df.reset_index().rename(columns={"index": "time"})
     weather_df["time"] = pd.to_datetime(weather_df["time"]).dt.normalize()
 
     # Load data by ENTSO-E API, resampled to daily frequency
     load_start = pd.Timestamp(start_date, tz="Europe/Brussels")
-    load_end = pd.Timestamp(end_date, tz="Europe/Brussels") + pd.Timedelta(days=1)
+    load_end = pd.Timestamp(
+        end_date, tz="Europe/Brussels") + pd.Timedelta(days=1)
     load_df = get_load_data(
         start=load_start,
         end=load_end,
@@ -188,31 +214,35 @@ def get_matched_weather_load_data(
 
     load_df["time"] = pd.to_datetime(load_df["time"])
     if pd.api.types.is_datetime64tz_dtype(load_df["time"]):
-        load_df["time"] = load_df["time"].dt.tz_convert("Europe/Brussels").dt.tz_localize(None)
+        load_df["time"] = load_df["time"].dt.tz_convert(
+            "Europe/Brussels").dt.tz_localize(None)
     load_df["time"] = load_df["time"].dt.normalize()
 
     # Merge weather and load data on daily timestamps, keeping only matching days
     merged_df = pd.merge(weather_df, load_df, on="time", how="inner")
     merged_df = merged_df.sort_values("time").reset_index(drop=True)
-    merged_df = merged_df.dropna()  # Drop rows with missing values after merge (induced by lag features)
+    # Drop rows with missing values after merge (induced by lag features)
+    merged_df = merged_df.dropna()
     return merged_df
 
 
 if __name__ == "__main__":
 
     # Weather data fetching
-    weather_df = get_weather_data(date(2026, 2, 25), date(2026, 2, 28), locations=3)
+    weather_df = get_weather_and_calender_data(
+        date(2026, 2, 25), date(2026, 2, 28), locations=3)
     # print(weather_df.head())
-    
+
     # Load data fetching
     load_df = get_load_data(
         start=pd.Timestamp("2026-02-25", tz="Europe/Brussels"),
-        end=pd.Timestamp("2026-02-28", tz="Europe/Brussels") + pd.Timedelta(days=1),
+        end=pd.Timestamp("2026-02-28", tz="Europe/Brussels") +
+        pd.Timedelta(days=1),
         country_code="DE",
         api_key=None,
     )
     # print(load_df.head())
-    
+
     # Merged weather and load data fetching
     merged_df = get_matched_weather_load_data(
         start_date=date(2026, 2, 1),
