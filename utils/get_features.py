@@ -72,13 +72,10 @@ def get_load_data(
     df_load["load_lag_1"] = df_load["load"].shift(1)  # Yesterday's load
     df_load["load_lag_7"] = df_load["load"].shift(6)  # Load from the target day last week
     df_load["load_lag_14"] = df_load["load"].shift(13)  # Load from target day two weeks ago
-    df_load["load_lag_30"] = df_load["load"].shift(29)  # Load from target day last month
     df_load["rolling_mean_7"] = df_load["load"].rolling(7).mean()  # 7-day rolling mean
     df_load["rolling_mean_14"] = df_load["load"].rolling(14).mean()  # 14-day rolling mean
-    df_load["rolling_mean_30"] = df_load["load"].rolling(30).mean()  # 30-day rolling mean
     df_load["std_7"] = df_load["load"].rolling(7).std()  # 7-day rolling std
     df_load["std_14"] = df_load["load"].rolling(14).std()  # 14-day rolling std
-    df_load["std_30"] = df_load["load"].rolling(30).std()  # 30-day rolling std
 
     # Add the target for the prediction task: load of the next day
     df_load["load_t+1"] = df_load["load"].shift(-1)
@@ -191,7 +188,8 @@ def get_matched_weather_load_data(
     country_code: str = "DE",
     locations: int = 4,
     api_key: str | None = None,
-    align_calendar_to_target_day: bool = True
+    align_calendar_to_target_day: bool = True,
+    production_data: bool = False
 ) -> pd.DataFrame:
     """
     Fetches weather and load data and matches both by daily timestamps.
@@ -248,6 +246,8 @@ def get_matched_weather_load_data(
     # Merge weather and load data on daily timestamps, keeping only matching days
     merged_df = pd.merge(weather_df, load_df, on="time", how="inner")
     merged_df = merged_df.sort_values("time").reset_index(drop=True)
+    if production_data:
+        merged_df = merged_df.drop(columns=[col for col in merged_df.columns if col.startswith("load_t")])  
     # Drop rows with missing values after merge (induced by lag features)
     merged_df = merged_df.dropna()
     return merged_df
@@ -256,19 +256,19 @@ def get_matched_weather_load_data(
 if __name__ == "__main__":
 
     # Weather data fetching
-    # weather_df = get_weather_and_calender_data(
-    #     date(2026, 2, 25), date(2026, 2, 28), locations=3)
-    # print(weather_df.head())
+    weather_df = get_weather_and_calender_data(
+        date(2026, 2, 1), date(2026, 2, 28), locations=3)
+    print(weather_df.head())
 
     # Load data fetching
-    # load_df = get_load_data(
-    #     start=pd.Timestamp("2026-02-25", tz="Europe/Brussels"),
-    #     end=pd.Timestamp("2026-02-28", tz="Europe/Brussels") +
-    #     pd.Timedelta(days=1),
-    #     country_code="DE",
-    #     api_key=None,
-    # )
-    # print(load_df.head())
+    load_df = get_load_data(
+        start=pd.Timestamp("2026-02-25", tz="Europe/Brussels"),
+        end=pd.Timestamp("2026-02-28", tz="Europe/Brussels") +
+        pd.Timedelta(days=1),
+        country_code="DE",
+        api_key=None,
+    )
+    print(load_df.head())
 
     # Merged weather and load data fetching
     merged_df = get_matched_weather_load_data(

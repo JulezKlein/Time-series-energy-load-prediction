@@ -12,7 +12,21 @@ import torch
 import numpy as np
 from typing import Union
 
-def prepare_data_for_modeling(features: list, target: Union[str, list], scale_features: list, save_scaler: bool = True, save_data: bool = True, reprocess_data: bool = False):
+def prepare_data_for_modeling(
+    features: list,
+    target: Union[str, list],
+    scale_features: list,
+    save_scaler: bool = True,
+    save_data: bool = True,
+    reprocess_data: bool = False,
+    train_start_date: Union[date, str] = date(2018, 1, 1),
+    train_end_date: Union[date, str] = date(2023, 12, 31),
+    val_start_date: Union[date, str] = date(2024, 1, 1),
+    val_end_date: Union[date, str] = date(2024, 12, 31),
+    test_start_date: Union[date, str] = date(2025, 1, 1),
+    test_end_date: Union[date, str] = date(2025, 12, 31),
+    production_data: bool = False
+):
     load_dotenv()
 
     entsoe_api_key = os.getenv("ENTSOE_API_KEY")
@@ -21,35 +35,52 @@ def prepare_data_for_modeling(features: list, target: Union[str, list], scale_fe
     data_dir = project_root / "data"
     models_dir = project_root / "models"
 
-    train_out_path = data_dir / "train_data_2018_2023.parquet"
-    val_out_path = data_dir / "val_data_2024.parquet"
-    test_out_path = data_dir / "test_data_2025.parquet"
+    def _to_date(value: Union[date, str], name: str) -> date:
+        resolved_date = pd.Timestamp(value).date()
+        if resolved_date is None:
+            raise ValueError(f"Invalid value for {name}: {value}")
+        return resolved_date
+
+    train_start = _to_date(train_start_date, "train_start_date")
+    train_end = _to_date(train_end_date, "train_end_date")
+    val_start = _to_date(val_start_date, "val_start_date")
+    val_end = _to_date(val_end_date, "val_end_date")
+    test_start = _to_date(test_start_date, "test_start_date")
+    test_end = _to_date(test_end_date, "test_end_date")
+
+    if train_start > train_end:
+        raise ValueError("train_start_date must be before or equal to train_end_date")
+    if val_start > val_end:
+        raise ValueError("val_start_date must be before or equal to val_end_date")
+    if test_start > test_end:
+        raise ValueError("test_start_date must be before or equal to test_end_date")
+
+    train_out_path = data_dir / f"train_data_{train_start:%Y%m%d}_{train_end:%Y%m%d}.parquet"
+    val_out_path = data_dir / f"val_data_{val_start:%Y%m%d}_{val_end:%Y%m%d}.parquet"
+    test_out_path = data_dir / f"test_data_{test_start:%Y%m%d}_{test_end:%Y%m%d}.parquet"
 
     if not train_out_path.exists() or reprocess_data:
-        # Training data from 2018 to 2023
-        train_df = get_matched_weather_load_data(start_date=date(2018, 1, 1), end_date=date(
-            2023, 12, 31), country_code="DE", locations=3, api_key=entsoe_api_key,
-            align_calendar_to_target_day=True)
+        train_df = get_matched_weather_load_data(start_date=train_start, end_date=train_end,
+            country_code="DE", locations=3, api_key=entsoe_api_key,
+            align_calendar_to_target_day=True, production_data=production_data)
         if save_data:
             train_df.to_parquet(train_out_path)
     else:
         train_df = pd.read_parquet(train_out_path)
 
     if not val_out_path.exists() or reprocess_data:
-        # Validation data from 2024
-        val_df = get_matched_weather_load_data(start_date=date(2024, 1, 1), end_date=date(
-            2024, 12, 31), country_code="DE", locations=3, api_key=entsoe_api_key,
-            align_calendar_to_target_day=True)
+        val_df = get_matched_weather_load_data(start_date=val_start, end_date=val_end,
+            country_code="DE", locations=3, api_key=entsoe_api_key,
+            align_calendar_to_target_day=True, production_data=production_data)
         if save_data:
             val_df.to_parquet(val_out_path)
     else:
         val_df = pd.read_parquet(val_out_path)
 
     if not test_out_path.exists() or reprocess_data:
-        # Test data from 2025
-        test_df = get_matched_weather_load_data(start_date=date(2025, 1, 1), end_date=date(
-            2025, 12, 31), country_code="DE", locations=3, api_key=entsoe_api_key,
-            align_calendar_to_target_day=True)
+        test_df = get_matched_weather_load_data(start_date=test_start, end_date=test_end,
+            country_code="DE", locations=3, api_key=entsoe_api_key,
+            align_calendar_to_target_day=True, production_data=production_data)
         if save_data:
             test_df.to_parquet(test_out_path)
     else:
