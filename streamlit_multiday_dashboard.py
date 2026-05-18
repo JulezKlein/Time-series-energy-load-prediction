@@ -142,9 +142,7 @@ def run_forecast(
         raise ValueError(f"Missing required feature columns: {missing_features}")
 
     if len(data_df) < window_size:
-        raise ValueError(
-            f"Need at least {window_size} rows for prediction, but got {len(data_df)} rows."
-        )
+        raise ValueError(f"Need at least {window_size} rows for prediction, but got {len(data_df)} rows.")
 
     X_scaled = scaler.transform(data_df[features])
     X_window = X_scaled[-window_size:]
@@ -270,7 +268,7 @@ def make_last_week_hypothetical_table(
         if window_start_idx < 0:
             continue
 
-        X_window = X_scaled[window_start_idx:window_end_idx + 1]
+        X_window = X_scaled[window_start_idx : window_end_idx + 1]
         X_tensor = torch.tensor(X_window, dtype=torch.float32).unsqueeze(0)
 
         with torch.no_grad():
@@ -397,7 +395,7 @@ def main() -> None:
     last_month_df = last_month_df.sort_values("time")
 
     st.subheader("Forecast for Next Days")
-    st.dataframe(forecast_df, width='stretch', hide_index=True)
+    st.dataframe(forecast_df, width="stretch", hide_index=True)
 
     st.subheader("Historical Load Extended with Forecast")
     st.plotly_chart(
@@ -406,11 +404,11 @@ def main() -> None:
             forecast_df=forecast_df,
             last_week_hypothetical_df=last_week_hypothetical_df,
         ),
-        width='stretch',
+        width="stretch",
     )
-    
+
     st.subheader("Last Month Input Data (Prediction Features)")
-    st.dataframe(last_month_df, width='stretch', hide_index=True)
+    st.dataframe(last_month_df, width="stretch", hide_index=True)
 
 
 if __name__ == "__main__":

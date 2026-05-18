@@ -208,6 +208,8 @@ __marimo__/
 
 .vscode/
 
+.DS_Store
+
 data/*
 !data/latest_production_frame.parquet
 models/*

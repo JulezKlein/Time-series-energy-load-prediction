@@ -21,10 +21,7 @@ def evaluate_and_plot_model_sklearn(model, X_test_scaled, y_test, test_df):
     base_index = test_df.loc[y_test.index, "time"] if "time" in test_df.columns else y_test.index
     shifted_index = pd.to_datetime(base_index) + pd.to_timedelta(_target_day_offset(getattr(y_test, "name", None)), unit="D")
 
-    plot_df = pd.DataFrame({
-        "actual": y_test.values,
-        "predicted": y_pred_test
-    }, index=shifted_index)
+    plot_df = pd.DataFrame({"actual": y_test.values, "predicted": y_pred_test}, index=shifted_index)
     plot_df = plot_df.sort_index()
 
     pred_std = float(np.std(y_pred_test))
@@ -36,8 +33,7 @@ def evaluate_and_plot_model_sklearn(model, X_test_scaled, y_test, test_df):
 
     plt.figure(figsize=(14, 5))
     plt.plot(plot_df.index, plot_df["actual"], label="Actual", linewidth=1.8)
-    plt.plot(plot_df.index, plot_df["predicted"],
-             label="Predicted", linewidth=1.5, alpha=0.85)
+    plt.plot(plot_df.index, plot_df["predicted"], label="Predicted", linewidth=1.5, alpha=0.85)
     plt.title("Test Set: Predicted vs Actual Load")
     plt.xlabel("Date")
     plt.ylabel("Load (MW)")
@@ -87,7 +83,7 @@ def evaluate_and_plot_model_torch(
     if y_pred_values.ndim == 2 and y_pred_values.shape[1] == 1:
         y_pred_values = y_pred_values[:, 0]
 
-    y_true_aligned = y_test.iloc[window_size - 1:]
+    y_true_aligned = y_test.iloc[window_size - 1 :]
     y_true_values = y_true_aligned.values
 
     is_multi_target = y_pred_values.ndim == 2
@@ -136,15 +132,12 @@ def evaluate_and_plot_model_torch(
         if pred_std < 1e-6:
             print("Warning: model predictions are nearly constant. The loaded checkpoint appears collapsed to a mean prediction.")
 
-        print(
-            f"Test MAE: {mean_absolute_error(plot_df['actual'], plot_df['predicted']):.2f}")
-        print(
-            f"Test RMSE: {np.sqrt(mean_squared_error(plot_df['actual'], plot_df['predicted'])):.2f}")
+        print(f"Test MAE: {mean_absolute_error(plot_df['actual'], plot_df['predicted']):.2f}")
+        print(f"Test RMSE: {np.sqrt(mean_squared_error(plot_df['actual'], plot_df['predicted'])):.2f}")
 
         plt.figure(figsize=(14, 5))
         plt.plot(plot_df.index, plot_df["actual"], label="Actual", linewidth=1.8)
-        plt.plot(plot_df.index, plot_df["predicted"],
-                 label="Predicted", linewidth=1.5, alpha=0.85)
+        plt.plot(plot_df.index, plot_df["predicted"], label="Predicted", linewidth=1.5, alpha=0.85)
         plt.title("Test Set: Predicted vs Actual Load")
         plt.xlabel("Date")
         plt.ylabel("Load (MW)")
@@ -219,8 +212,7 @@ def evaluate_and_plot_model_torch(
 
         plt.figure(figsize=(14, 5))
         plt.plot(y_true_shifted_df.index, y_true_shifted_df[plot_target], label=f"Actual ({plot_target})", linewidth=1.8)
-        plt.plot(y_pred_shifted_df.index, y_pred_shifted_df[plot_target],
-                 label=f"Predicted ({plot_target})", linewidth=1.5, alpha=0.85)
+        plt.plot(y_pred_shifted_df.index, y_pred_shifted_df[plot_target], label=f"Predicted ({plot_target})", linewidth=1.5, alpha=0.85)
         plt.title(f"Test Set: Predicted vs Actual Load ({plot_target})")
         plt.xlabel("Date")
         plt.ylabel("Load (MW)")

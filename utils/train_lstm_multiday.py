@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 
+
 def train_one_epoch_multiday(
     epoch,
     best_val_mse,
@@ -22,8 +23,8 @@ def train_one_epoch_multiday(
     validate_every,
     training_loader,
     validation_loader,
-    ):
-    
+):
+
     model.train()
     train_mse_sum = 0.0
     train_mae_sum = 0.0
@@ -70,14 +71,14 @@ def train_one_epoch_multiday(
             val_mse_sum += torch.sum((y_pred - y_batch) ** 2).item()
             val_mae_sum += torch.sum(torch.abs(y_pred - y_batch)).item()
             val_pred_sum += torch.sum(y_pred).item()
-            val_pred_sq_sum += torch.sum(y_pred ** 2).item()
+            val_pred_sq_sum += torch.sum(y_pred**2).item()
 
     val_mse = val_mse_sum / val_elements
     val_rmse = np.sqrt(val_mse)
     val_mae = val_mae_sum / val_elements
 
     val_pred_mean = val_pred_sum / val_elements
-    val_pred_var = max((val_pred_sq_sum / val_elements) - (val_pred_mean ** 2), 0.0)
+    val_pred_var = max((val_pred_sq_sum / val_elements) - (val_pred_mean**2), 0.0)
     val_pred_std = np.sqrt(val_pred_var)
 
     scheduler.step(val_mse)
@@ -115,9 +116,6 @@ def train_one_epoch_multiday(
 
     should_stop = epochs_without_improvement >= early_stopping_patience
     if should_stop:
-        print(
-            f"Early stopping at epoch {epoch}. No sufficient improvement for "
-            f"{early_stopping_patience} validation checks."
-        )
+        print(f"Early stopping at epoch {epoch}. No sufficient improvement for {early_stopping_patience} validation checks.")
 
     return best_val_mse, best_epoch, epochs_without_improvement, should_stop
