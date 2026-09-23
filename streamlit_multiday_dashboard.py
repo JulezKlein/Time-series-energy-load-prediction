@@ -5,13 +5,12 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 import torch
-import plotly.graph_objects as go
 
 from utils.get_features import get_matched_weather_load_data
 from utils.lstm_model import LSTMForecaster
-
 
 DEFAULT_FEATURES_TODAY = ["Temp", "Min Temp", "Max Temp", "load"]
 DEFAULT_FEATURES_TARGET_TIME = ["is_holiday", "dow_sin", "dow_cos", "month_sin", "month_cos"]

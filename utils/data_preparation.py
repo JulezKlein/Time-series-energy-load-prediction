@@ -1,31 +1,31 @@
-from dotenv import load_dotenv
 import os
 from datetime import date
 from pathlib import Path
 
-import pandas as pd
-from utils.get_features import get_matched_weather_load_data
-from sklearn.preprocessing import StandardScaler
-from sklearn.compose import ColumnTransformer
 import joblib
-import torch
 import numpy as np
-from typing import Union
+import pandas as pd
+import torch
+from dotenv import load_dotenv
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler
+
+from utils.get_features import get_matched_weather_load_data
 
 
 def prepare_data_for_modeling(
     features: list,
-    target: Union[str, list],
+    target: str | list,
     scale_features: list,
     save_scaler: bool = True,
     save_data: bool = True,
     reprocess_data: bool = False,
-    train_start_date: Union[date, str] = date(2018, 1, 1),
-    train_end_date: Union[date, str] = date(2023, 12, 31),
-    val_start_date: Union[date, str] = date(2024, 1, 1),
-    val_end_date: Union[date, str] = date(2024, 12, 31),
-    test_start_date: Union[date, str] = date(2025, 1, 1),
-    test_end_date: Union[date, str] = date(2025, 12, 31),
+    train_start_date: date | str = date(2018, 1, 1),
+    train_end_date: date | str = date(2023, 12, 31),
+    val_start_date: date | str = date(2024, 1, 1),
+    val_end_date: date | str = date(2024, 12, 31),
+    test_start_date: date | str = date(2025, 1, 1),
+    test_end_date: date | str = date(2025, 12, 31),
     production_data: bool = False,
 ):
     load_dotenv()
@@ -36,7 +36,7 @@ def prepare_data_for_modeling(
     data_dir = project_root / "data"
     models_dir = project_root / "models"
 
-    def _to_date(value: Union[date, str], name: str) -> date:
+    def _to_date(value: date | str, name: str) -> date:
         resolved_date = pd.Timestamp(value).date()
         if resolved_date is None:
             raise ValueError(f"Invalid value for {name}: {value}")
